@@ -1,6 +1,16 @@
 <project name="FreeJ2ME">
 	<echo message="Building FreeJ2ME" />
 
+	<property name="variant" value="linux-${os.arch}" />
+
+    <available file="natives/dist/${variant}" property="natives.exist" />
+    <fail message="Build natives for ${variant} first or specify a different variant via -Dvariant=variant.">
+        <condition>
+            <not>
+                <isset property="natives.exist" />
+            </not>
+        </condition>
+    </fail>
 
 <!--
 ****************************************************
@@ -44,6 +54,7 @@
 		destfile="build/freej2me-sdl.jar"
 		basedir="build/classes">
 		<fileset dir="resources" />
+		<zipfileset dir="natives/dist/${variant}" prefix="natives/${variant}/"/>
 		<metainf dir="META-INF" />
 		<manifest>
 			<!-- Libretro Version -->

@@ -21,11 +21,10 @@ import javax.microedition.media.Controllable;
 
 public abstract class DataSource implements Controllable
 {
-	private String sourceLocator;
-	
+
 	public DataSource(java.lang.String locator)
 	{
-		sourceLocator = locator;
+
 	}
 
 	public abstract void connect();
@@ -38,7 +37,7 @@ public abstract class DataSource implements Controllable
 
 	public abstract Control[] getControls();
 
-	public java.lang.String getLocator() { return sourceLocator; }
+	public java.lang.String getLocator() { return null; }
 
 	public abstract SourceStream[] 	getStreams();
 
