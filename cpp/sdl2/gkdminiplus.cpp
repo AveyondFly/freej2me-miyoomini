@@ -206,6 +206,14 @@ void drawFrame(unsigned char *frame, SDL_Texture *mTexture,size_t pitch, SDL_Rec
 	
 }
 
+void loadDisplayDimentions()
+{
+	SDL_DisplayMode dispMode;
+	SDL_GetDesktopDisplayMode(0, &dispMode);
+	display_width = dispMode.w;
+	display_height = dispMode.h;
+}
+
 /******************************************************** Processing Function */
 void init()
 {
@@ -220,7 +228,8 @@ void init()
 		std::cout<<"SDL无法初始化! SDL_Error: "<<SDL_GetError()<<std::endl;
 		exit(0);
 	}
-	
+
+	loadDisplayDimentions();
 	if (SDL_NumJoysticks() >= 1)
 	{
 		g_joystick = SDL_JoystickOpen(0);
@@ -371,6 +380,7 @@ void *startCapturing(void *args)
 	int mod=0;
 	int ignore=0;
 	//int isFirst=1;
+	SDL_JoystickEventState(SDL_ENABLE);
 	while (capturing)
 	{
 		SDL_Event event;
@@ -390,15 +400,15 @@ void *startCapturing(void *args)
 			
 				int key = event.jbutton.button;
 				
-				if (key == M_QUIT1) {
+				//printf("get key pressed:0x%x\n", key);
+				if (key == 11) {
 					capturing = false;
 					sendKey(-1, true);
 					fflush(stderr);
 					continue;
 				}
-				if (key == M_QUIT2) {
-					capturing = false;
-					sendKey(-1, true);
+				if (key == 12 && event.jbutton.state == SDL_PRESSED) {
+					sendKey(-2, true);
 					fflush(stderr);
 					continue;
 				}
@@ -696,7 +706,7 @@ void defaultKeymap()
 
 int loadConfig() {
     // 打开文件
-    FILE *file = fopen("keymap.cfg", "r");
+    FILE *file = fopen("/storage/java/keymap.cfg", "r");
     if (file == NULL) {
 		std::cout  << "打开文件失败" << std::endl;
         return -1;

@@ -195,7 +195,7 @@ public class Anbu
 		
 
 		Mobile.setPlatform(new MobilePlatform(lcdWidth, lcdHeight));
-		Mobile.getPlatform().dataPath="./";
+		Mobile.getPlatform().dataPath="/storage/roms/savestates/j2me/";
 		Mobile.getPlatform().rootPath="/storage/roms/j2me/";
 		
 		
@@ -406,15 +406,16 @@ public class Anbu
 		{
 			try
 			{
-				String[] args={"./sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
+				System.out.println("sdl interface ================");
+				String[] args={"/storage/java/sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
 				
 				ProcessBuilder processBuilder = new ProcessBuilder(args);
 				
 				proc=processBuilder.start();
 
 				//标准输出流，从接口获取用户的按键输入
-				keys = proc.getInputStream(); //  miyoo mini/x64-linux
-				//keys = proc.getErrorStream(); //gkdminiplus
+				//keys = proc.getInputStream(); //  miyoo mini/x64-linux
+				keys = proc.getErrorStream(); //gkdminiplus
 				
 				//输入流，把图像传给接口
 				frame = proc.getOutputStream();
@@ -717,6 +718,9 @@ public class Anbu
 				showfps=0;
 				config.saveConfig();
 				
+				break;
+			case -2:
+				ScreenShot.takeScreenshot(false);
 				break;
 
 			// F4 - Quit

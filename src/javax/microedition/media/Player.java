@@ -42,9 +42,9 @@ public interface Player extends Controllable {
 
 	long getMediaTime();
 
-	TimeBase getTimeBase();
+//	TimeBase getTimeBase();
 
-	void setTimeBase(TimeBase master) throws MediaException;
+//	void setTimeBase(TimeBase master) throws MediaException;
 
 	long getDuration();
 
