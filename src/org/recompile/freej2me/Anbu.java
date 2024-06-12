@@ -247,18 +247,9 @@ public class Anbu
 					
 					
 					int[] data= new int[lcdWidth* lcdHeight];
-					byte[] frame = new byte[lcdWidth* lcdHeight * 2];
-					
+					byte[] frame = new byte[lcdWidth* lcdHeight * 3];
 					Mobile.getPlatform().getLCD().getRGB(0, 0, lcdWidth, lcdHeight, data, 0, lcdWidth);
-					
-					//gc.drawImage(Mobile.getPlatform().getLCD(), 0, 0, lcdWidth, lcdHeight, null);
-					//int[] data=canvas.getRGB(0, 0, lcdWidth, lcdHeight, null, 0, lcdWidth);
-					
-					
-					
-					
 					byte R,G,B;
-					short tmp;
 					
 					for(int i = 0; i < data.length; i++)
 					{
@@ -266,15 +257,10 @@ public class Anbu
 						G = (byte)(data[i] >> 8);
 						B = (byte)(data[i]);
 						
-						R = (byte)(R>>3);
-						G = (byte)(G>>2);
-						B = (byte)(B>>3);
-						tmp = (short) ( R << 11 & 0xF800
-								| G << 5 & 0x07E0
-								| B & 0x001f);
 
-						frame[2*i]= (byte) (tmp&0x00FF);
-						frame[2*i+1]= (byte) ((tmp>>8)&0x00FF);
+						frame[3*i]= (byte) R;
+						frame[3*i+1]= (byte) G;
+						frame[3*i+2]= (byte) B;
 					}
 					
 					
@@ -287,17 +273,19 @@ public class Anbu
 							for(int j=0;j<12;j++)
 							{
 								
-								t= ((10 + i)*lcdWidth+(10 + j))*2;
+								t= ((10 + i)*lcdWidth+(10 + j))*3;
 								switch (keyPix[index+(i*12)+j])
 								{
 									case 0: 
 										frame[t] = (byte)0x00; 
 										frame[t+1] = (byte)0x00;
+										frame[t+2] = (byte)0x00;
 										
 										break;
 									case 1: 
-										frame[t] = (byte)0x78; 
-										frame[t+1] = (byte)0x0F;
+										frame[t] = (byte)0x0; 
+										frame[t+1] = (byte)0xFF;
+										frame[t+2] = (byte)0xFF;
 										break;
 								}
 							}

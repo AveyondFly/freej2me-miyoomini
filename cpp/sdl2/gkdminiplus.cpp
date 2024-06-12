@@ -28,7 +28,7 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 #include <SDL2/SDL.h>
 #include "cJSON.h"
 
-#define BYTES 2
+#define BYTES 3
 
 #define M_A 1
 #define M_B 0
@@ -169,6 +169,7 @@ void rot(unsigned char* src,unsigned char*dest,int w,int h)
 		{
 			dest[i*h*BYTES+j*BYTES]=src[j*w*BYTES+(w-i)*BYTES];
 			dest[i*h*BYTES+j*BYTES+1]=src[j*w*BYTES+(w-i)*BYTES+1];
+			dest[i*h*BYTES+j*BYTES+2]=src[j*w*BYTES+(w-i)*BYTES+2];
 		}
 	}
 }
@@ -181,7 +182,7 @@ void rot2(unsigned char* src,unsigned char*dest,int w,int h)
 		{
 			dest[(w-i-1)*h*BYTES+j*BYTES]=src[(h-j-1)*w*BYTES+(w-i)*BYTES];
 			dest[(w-i-1)*h*BYTES+j*BYTES+1]=src[(h-j-1)*w*BYTES+(w-i)*BYTES+1];
-			
+			dest[(w-i-1)*h*BYTES+j*BYTES+2]=src[(h-j-1)*w*BYTES+(w-i)*BYTES+2];
 		}
 	}
 }
@@ -241,38 +242,14 @@ void init()
 	}
 
 
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
-
-	int window_flag = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-	
-	int window_x = SDL_WINDOWPOS_UNDEFINED, window_y = SDL_WINDOWPOS_UNDEFINED;
-
-	try{
-		mWindow = SDL_CreateWindow(NULL, window_x, window_y, display_width, display_height, window_flag);
-		
-	}
-	catch(std::exception& e)
-	{
-		std::cout << "SDL_CreateWindow err:"<<e.what() << std::endl;
-		exit(-1);
-	}
-	
-	if(mWindow == NULL) {
-        std::cout<<"Could not create window: "<<SDL_GetError()<<std::endl;
-        exit(-1);
-    }
-	
-
-	Uint32 render_flag = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
-
-    mRenderer = SDL_CreateRenderer(mWindow, -1, render_flag);
-	
-    SDL_RenderSetLogicalSize(mRenderer, display_width, display_height);
-    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
-	
+	SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP, &mWindow, &mRenderer);
+	SDL_SetRenderDrawColor(mRenderer, 44, 62, 80, 255);
 	SDL_RenderClear(mRenderer);
 	SDL_RenderPresent(mRenderer);
-	
+
+	// Set scaling properties
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+	SDL_RenderSetLogicalSize(mRenderer, display_width, display_height);	
 }
 
 void loadBackground()
@@ -297,11 +274,11 @@ void startStreaming()
 	dest= getDestinationRect(source_width,source_height);
 	pitch= source_width * sizeof(char) * BYTES;
 	//纹理大小是jar游戏大小
-	mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, source_width, source_height);
+	mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, source_width, source_height);
 	
 	rodest= getDestinationRect(source_height,source_width);
 	ropitch= source_height * sizeof(char) * BYTES;
-	romTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING,  source_height,source_width);
+	romTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING,  source_height,source_width);
 
 	//loadBackground();
 	 
@@ -344,10 +321,12 @@ void startStreaming()
 							case 1: 
 								frame[t] = 0x00; 
 								frame[t+1] = 0x00;
+								frame[t+2] = 0x00;
 								break;
 							case 2: 
 								frame[t] = 0xFF; 
 								frame[t+1] = 0xFF; 
+								frame[t+2] = 0xFF; 
 								break;
 						}
 						
