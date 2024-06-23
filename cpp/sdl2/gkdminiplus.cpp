@@ -27,6 +27,7 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 #include <pthread.h>
 #include <SDL2/SDL.h>
 #include "cJSON.h"
+#include <FreeImage.h>
 
 #define BYTES 3
 
@@ -47,6 +48,7 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 #define M_QUIT1 10
 #define M_QUIT2 17
 
+using namespace std;
 
 int KEY_LEFT=M_Y;
 int KEY_RIGHT=M_A;
@@ -60,6 +62,11 @@ int KEY_9=M_R2;
 int KEY_0=M_B;
 
 pthread_t t_capturing;
+
+double additional_scale = 1;
+double overlay_scale = 1;
+string interpol = "nearest";
+SDL_Texture *mOverlay;
 
 int angle = 0;
 //原始游戏画面大小
@@ -197,7 +204,7 @@ void drawFrame(unsigned char *frame, SDL_Texture *mTexture,size_t pitch, SDL_Rec
 	last_time = SDL_GetTicks();
 
 	SDL_RenderClear(mRenderer);
-	//SDL_RenderCopy(mRenderer, mBackground, NULL, NULL);
+	SDL_RenderCopy(mRenderer, mBackground, NULL, NULL);
 	
 	SDL_UpdateTexture(mTexture, NULL, frame, pitch);
 	SDL_RenderCopy(mRenderer, mTexture, NULL, dest);
@@ -252,26 +259,59 @@ void init()
 	SDL_RenderSetLogicalSize(mRenderer, display_width, display_height);	
 }
 
-void loadBackground()
-{	
-	SDL_Surface *bmp = NULL;
-	bmp = SDL_LoadBMP("bg.bmp");
-    if (bmp == NULL) {
-        std::cerr<<"SDL_LoadBMP failed: "<<SDL_GetError()<<std::endl;
-    }
-	
+void loadBackground(string image)
+{
+	if (image.empty())
+		return;
 
-    mBackground = SDL_CreateTextureFromSurface(mRenderer, bmp);
-	
-    SDL_FreeSurface(bmp);
+	FREE_IMAGE_FORMAT format = FreeImage_GetFileType(image.c_str(), 0);
+	FIBITMAP* imagen = FreeImage_Load(format, image.c_str());
+
+	int w = FreeImage_GetWidth(imagen);
+	int h = FreeImage_GetHeight(imagen);
+	int scan_width = FreeImage_GetPitch(imagen);
+
+	unsigned char* buffer = new unsigned char[w * h * 4];
+	FreeImage_ConvertToRawBits(buffer, imagen, scan_width, 32, 0, 0, 0, TRUE);
+	FreeImage_Unload(imagen);
+
+	mBackground = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
+	SDL_UpdateTexture(mBackground, NULL, buffer, w * sizeof(char) * 4);
+	delete[] buffer;
 }
 
-void startStreaming()
+void loadOverlay(SDL_Rect &rect)
+{
+	int psize =  overlay_scale * rect.w / source_width;
+	int size = rect.w * rect.h * 4;
+	unsigned char *bytes = new unsigned char[size];
+
+	for (int h = 0; h < rect.h; h++)
+		for (int w = 0; w < rect.w; w++)
+		{
+			int c = (h * rect.w + w) * 4;
+			bytes[c] = 0;
+			bytes[c+1] = 0;
+			bytes[c+2] = 0;
+			bytes[c+3] = w % psize == 0 || h % psize == 0 ? 64 : 0;
+		}
+
+	mOverlay = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, rect.w, rect.h);
+	SDL_SetTextureBlendMode(mOverlay, SDL_BLENDMODE_BLEND);
+	SDL_UpdateTexture(mOverlay, NULL, bytes, rect.w * sizeof(unsigned char) * 4);
+	delete[] bytes;
+}
+
+void startStreaming(string image)
 {
 	size_t pitch,ropitch;
 	SDL_Rect dest,rodest;
 	
 	dest= getDestinationRect(source_width,source_height);
+
+	loadBackground(image);
+	loadOverlay(dest);
+
 	pitch= source_width * sizeof(char) * BYTES;
 	//纹理大小是jar游戏大小
 	mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, source_width, source_height);
@@ -280,8 +320,7 @@ void startStreaming()
 	ropitch= source_height * sizeof(char) * BYTES;
 	romTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING,  source_height,source_width);
 
-	//loadBackground();
-	 
+ 
 	size_t num_chars = source_width * source_height * BYTES;
 	unsigned char* frame = new unsigned char[num_chars];
 	unsigned char* tmp_frame = new unsigned char[num_chars];
@@ -768,15 +807,27 @@ int loadConfig() {
 /*********************************************************************** Main */
 int main(int argc, char* argv[])
 {
-	if(argc==3)
+	int c = 0;
+	string bg_image = "";
+
+	while (++c < argc)
 	{
-		source_width = atoi(argv[1]);
-		source_height = atoi(argv[2]);
+		if ( argc < 3 || string("--help") == argv[c] || string("-h") == argv[c]) {
+			return 0;
+		} else if (c == 1) {
+			source_width = atoi(argv[c]);
+			source_height = atoi(argv[++c]);
+		} else if (c > 2 && string("-r") == argv[c] && argc > c + 1) {
+			angle = atoi(argv[++c]) % 360;
+		} else if (c > 2 && string("-i") == argv[c] && argc > c + 1) {
+			interpol = argv[++c];
+		} else if (c > 2 && string("-b") == argv[c] && argc > c + 1) {
+			bg_image = argv[++c];
+		} else if (c > 2 && string("-s") == argv[c] && argc > c + 1) {
+			additional_scale = atof(argv[++c]);
+		}
 	}
-	else{
-		exit(0);
-	}
-	
+
 	loadConfig();
 	init();
 	
@@ -787,7 +838,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	startStreaming();
+	startStreaming(bg_image);
 	pthread_join(t_capturing, NULL);
 	SDL_ShowCursor(false);
 	SDL_Quit();

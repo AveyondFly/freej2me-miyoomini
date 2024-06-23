@@ -394,12 +394,18 @@ public class Anbu
 		{
 			try
 			{
-				System.out.println("sdl interface ================");
-				String[] args={"/storage/java/sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
-				
-				ProcessBuilder processBuilder = new ProcessBuilder(args);
-				
-				proc=processBuilder.start();
+				//String[] args={"/storage/java/sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
+				String[] new_args = new String[5];
+				new_args[0] = "/storage/java/sdl_interface";
+				new_args[1] = String.valueOf(lcdWidth);
+				new_args[2] = String.valueOf(lcdHeight);
+				new_args[3] = "-b";
+				if (lcdWidth > lcdHeight)
+					new_args[4] = "/storage/roms/bezels/java/java_h.png";
+				else
+					new_args[4] = "/storage/roms/bezels/java/java_v.png";
+			
+				proc = new ProcessBuilder(new_args).start();
 
 				//标准输出流，从接口获取用户的按键输入
 				//keys = proc.getInputStream(); //  miyoo mini/x64-linux
