@@ -48,8 +48,8 @@ public class MobilePlatform
 
 	public Runnable painter;
 
-	public String dataPath = "";
-	public String rootPath = "";
+	public String dataPath = "/storage/roms2/savestates/j2me/";
+	public String rootPath = "/storage/roms/j2me/";
 
 	private int keyState = 0;
 	

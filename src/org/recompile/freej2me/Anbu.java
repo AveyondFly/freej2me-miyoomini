@@ -159,7 +159,7 @@ public class Anbu
 		}
 		catch (Exception e) {
             System.err.println("字体文件加载失败,使用默认字体: " + e.getMessage());
-			globalFont = new java.awt.Font("MiSans Normal", java.awt.Font.PLAIN,  12);
+			globalFont = new java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.PLAIN,  12);
         }
 		return globalFont;
 	}

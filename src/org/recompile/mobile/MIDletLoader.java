@@ -412,7 +412,7 @@ public class MIDletLoader extends URLClassLoader
 						
 						icon = parts[1].trim();
 						className = parts[2].trim();
-						//suitename = name;
+						suitename = name;
 					}
 					//System.out.println("Loading " + name);
 				}

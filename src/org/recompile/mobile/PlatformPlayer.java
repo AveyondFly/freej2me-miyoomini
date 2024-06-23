@@ -315,7 +315,7 @@ public class PlatformPlayer implements Player
 		{
 			try
 			{
-				String rmsPath = "./rms/"+Mobile.getPlatform().loader.suitename;
+				String rmsPath = Mobile.getPlatform().dataPath + "./rms/"+Mobile.getPlatform().loader.suitename;
 				try
 				{
 					Files.createDirectories(Paths.get(rmsPath));
@@ -331,7 +331,7 @@ public class PlatformPlayer implements Player
 				if ((len = stream.read(buffer)) != -1)
 				{
 					filename=encodeMD5String(buffer);
-					filename="./rms/"+Mobile.getPlatform().loader.suitename+"/"+filename;
+					filename= Mobile.getPlatform().dataPath + "./rms/"+Mobile.getPlatform().loader.suitename+"/"+filename;
 				}
 				
 				bgmFileName=filename+type;				
