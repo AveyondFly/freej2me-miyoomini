@@ -41,12 +41,12 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 #define M_L2 6
 #define M_R 5
 #define M_R2 7
-#define M_UP 13
-#define M_DOWN 14
-#define M_LEFT 15
-#define M_RIGHT 16
+#define M_UP 12
+#define M_DOWN 13
+#define M_LEFT 14
+#define M_RIGHT 15
 #define M_QUIT1 10
-#define M_QUIT2 17
+#define M_SNAP 11
 
 using namespace std;
 
@@ -419,13 +419,13 @@ void *startCapturing(void *args)
 				int key = event.jbutton.button;
 				
 				//printf("get key pressed:0x%x\n", key);
-				if (key == 11) {
+				if (key == M_QUIT1) {
 					capturing = false;
 					sendKey(-1, true);
 					fflush(stderr);
 					continue;
 				}
-				if (key == 12 && event.jbutton.state == SDL_PRESSED) {
+				if (key == M_SNAP && event.jbutton.state == SDL_PRESSED) {
 					sendKey(-2, true);
 					fflush(stderr);
 					continue;
