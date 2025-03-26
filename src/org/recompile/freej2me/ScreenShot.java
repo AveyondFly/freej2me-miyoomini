@@ -45,7 +45,7 @@ public class ScreenShot
 			}
 			else
 			{
-				String screenshotPath = "/storage/roms/screenshots";
+				String screenshotPath = "/roms/screenshots";
 				try
 				{
 					Files.createDirectories(Paths.get(screenshotPath));

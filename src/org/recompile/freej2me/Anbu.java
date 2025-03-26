@@ -195,8 +195,8 @@ public class Anbu
 		
 
 		Mobile.setPlatform(new MobilePlatform(lcdWidth, lcdHeight));
-		Mobile.getPlatform().dataPath="/storage/roms/savestates/j2me/";
-		Mobile.getPlatform().rootPath="/storage/roms/j2me/";
+		Mobile.getPlatform().dataPath="/roms/savestates/j2me/";
+		Mobile.getPlatform().rootPath="/roms/j2me/";
 		
 		
 		soundLevel=Integer.parseInt(args[3]);
@@ -396,14 +396,14 @@ public class Anbu
 			{
 				//String[] args={"/storage/java/sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
 				String[] new_args = new String[5];
-				new_args[0] = "/storage/java/sdl_interface";
+				new_args[0] = "/userdata/system/configs/java/sdl_interface";
 				new_args[1] = String.valueOf(lcdWidth);
 				new_args[2] = String.valueOf(lcdHeight);
 				new_args[3] = "-b";
 				if (lcdWidth > lcdHeight)
-					new_args[4] = "/storage/roms/bezels/java/java_h.png";
+					new_args[4] = "/roms/bezels/java/java_h.png";
 				else
-					new_args[4] = "/storage/roms/bezels/java/java_v.png";
+					new_args[4] = "/roms/bezels/java/java_v.png";
 			
 				proc = new ProcessBuilder(new_args).start();
 

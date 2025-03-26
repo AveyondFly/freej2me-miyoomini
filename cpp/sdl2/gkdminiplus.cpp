@@ -31,35 +31,27 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 
 #define BYTES 3
 
-#define M_A 1
-#define M_B 0
-#define M_X 2
-#define M_Y 3
-#define M_start 9
-#define M_select 8
-#define M_L 4
-#define M_L2 6
-#define M_R 5
-#define M_R2 7
-#define M_UP 12
-#define M_DOWN 13
-#define M_LEFT 14
-#define M_RIGHT 15
-#define M_QUIT1 10
-#define M_SNAP 11
-
 using namespace std;
 
-int KEY_LEFT=M_Y;
-int KEY_RIGHT=M_A;
-int KEY_OK=M_X;
-int KEY_STAR=M_select;
-int KEY_POUND=M_start;
-int KEY_1=M_L;
-int KEY_3=M_R;
-int KEY_7=M_L2;
-int KEY_9=M_R2;
-int KEY_0=M_B;
+#define KEY_LEFT SDLK_w
+#define KEY_RIGHT SDLK_q
+#define KEY_OK SDLK_RETURN
+#define KEY_STAR SDLK_e
+#define KEY_POUND SDLK_r
+#define KEY_1 SDLK_1
+#define KEY_3 SDLK_3
+#define KEY_7 SDLK_7
+#define KEY_9 SDLK_9
+#define KEY_0 SDLK_0
+#define KEY_2 SDLK_2
+#define KEY_4 SDLK_4
+#define KEY_6 SDLK_6
+#define KEY_8 SDLK_8
+#define KEY_QUIT SDLK_F4
+#define KEY_SNAP SDLK_z
+#define KEY_ROTT SDLK_l
+#define KEY_MOD SDLK_m
+#define KEY_MOS SDLK_n
 
 pthread_t t_capturing;
 
@@ -231,23 +223,13 @@ void init()
 		exit(0);
 	}
 	//if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0 )
-	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) 
+	if(SDL_Init(SDL_INIT_VIDEO) < 0) 
 	{
 		std::cout<<"SDL无法初始化! SDL_Error: "<<SDL_GetError()<<std::endl;
 		exit(0);
 	}
 
 	loadDisplayDimentions();
-	if (SDL_NumJoysticks() >= 1)
-	{
-		g_joystick = SDL_JoystickOpen(0);
-		if (g_joystick == NULL)
-		{
-			std::cout<<"Unable to open joystick."<<std::endl;
-			exit(0);
-		}
-	}
-
 
 	SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP, &mWindow, &mRenderer);
 	SDL_SetRenderDrawColor(mRenderer, 44, 62, 80, 255);
@@ -393,6 +375,13 @@ void startStreaming(string image)
 	delete[] tmp_frame;
 }
 
+static void quit_process()
+{
+	capturing = false;
+	sendKey(-1, true);
+	fflush(stderr);
+}
+
 void *startCapturing(void *args)
 {
 	int mod=0;
@@ -408,29 +397,21 @@ void *startCapturing(void *args)
 			switch (event.type)
 			{
 			case SDL_QUIT:
-				capturing = false;
-				sendKey(-1, true);
-				fflush(stderr);
+				quit_process();
 				continue;
-
-			case SDL_JOYBUTTONDOWN:
-			case SDL_JOYBUTTONUP:
+			case SDL_KEYDOWN:
+			case SDL_KEYUP:
 			
-				int key = event.jbutton.button;
+				int key = event.key.keysym.sym;
 				
-				//printf("get key pressed:0x%x\n", key);
-				if (key == M_QUIT1) {
-					capturing = false;
-					sendKey(-1, true);
-					fflush(stderr);
-					continue;
-				}
-				if (key == M_SNAP && event.jbutton.state == SDL_PRESSED) {
+				printf("get key pressed:0x%x, mod:%d\n", key, mod);
+				if (key == KEY_QUIT)
+					quit_process();
+				else if (key == KEY_SNAP && event.type == SDL_KEYDOWN) {
 					sendKey(-2, true);
 					fflush(stderr);
 					continue;
 				}
-				
 				else if(key==KEY_RIGHT)//A=右键
 				{
 					key=SDLK_w;
@@ -446,16 +427,24 @@ void *startCapturing(void *args)
 						key=SDLK_x;//英文x，这里只要不冲突就行
 						ignore=0;
 					}
-					
-					
-					if(mod && event.type == SDL_JOYBUTTONDOWN)
-					{
-						key=SDLK_x;//英文x，这里只要不冲突就行
-						mod=0;
+				}
+				else if (key==KEY_ROTT)
+				{
+					key=SDLK_x;//英文x，这里只要不冲突就行
+					if(event.type == SDL_KEYDOWN)
 						rotate=(1+rotate)%3;//连续旋转
-						ignore=1;//忽略下次0键的释放
-					}
-					
+				}
+				else if (key==KEY_MOD)
+				{
+					key=SDLK_x;//英文x，这里只要不冲突就行
+					if(event.type == SDL_KEYDOWN)
+						key=SDLK_c;//英文c,发送到java,作为切换按键模式的信号
+				}
+				else if (key==KEY_MOS)
+				{
+					key=SDLK_x;//英文x，这里只要不冲突就行
+					if(event.type == SDL_KEYDOWN)
+						use_mouse=1-use_mouse;//切换鼠标
 				}
 				else if(key==KEY_OK) //X=ok
 				{
@@ -463,7 +452,7 @@ void *startCapturing(void *args)
 					
 					if(use_mouse)
 					{
-						sendKey(key, event.jbutton.state == SDL_PRESSED);
+						sendKey(key, event.type == SDL_KEYDOWN);
 						fflush(stderr);
 						continue;
 					}
@@ -481,19 +470,8 @@ void *startCapturing(void *args)
 						key=SDLK_x;//英文x，这里只要不冲突就行
 						ignore=0;
 					}
-					
-					
-					if(mod && event.type == SDL_JOYBUTTONDOWN)
-					{
-						key=SDLK_x;//英文x，这里只要不冲突就行
-						mod=0;
-						use_mouse=1-use_mouse;//切换鼠标
-						ignore=1;//忽略下次y键的释放
-					}
-					
-					
 				}
-				else if(key==M_UP)//上
+				else if(key==KEY_2)//上
 				{
 					key=SDLK_UP;
 					if(rotate==1)
@@ -506,7 +484,7 @@ void *startCapturing(void *args)
 					}
 					else
 					{
-						if(use_mouse && event.jbutton.state == SDL_PRESSED)
+						if(use_mouse && event.type == SDL_KEYDOWN)
 						{
 							if(joymouseY<6)
 							{
@@ -519,7 +497,7 @@ void *startCapturing(void *args)
 						}
 					}
 				}
-				else if(key==M_DOWN)//下
+				else if(key==KEY_8)//下
 				{
 					key=SDLK_DOWN;
 					if(rotate==1)
@@ -532,7 +510,7 @@ void *startCapturing(void *args)
 					}
 					else
 					{
-						if(use_mouse && event.jbutton.state == SDL_PRESSED)
+						if(use_mouse && event.type == SDL_KEYDOWN)
 						{
 							if(joymouseY+6>=source_height-11)
 							{
@@ -545,7 +523,7 @@ void *startCapturing(void *args)
 						}
 					}
 				}
-				else if(key==M_LEFT) //左
+				else if(key==KEY_4) //左
 				{
 					key=SDLK_LEFT;
 					if(rotate==1)
@@ -558,7 +536,7 @@ void *startCapturing(void *args)
 					}
 					else
 					{
-						if(use_mouse && event.jbutton.state == SDL_PRESSED)
+						if(use_mouse && event.type == SDL_KEYDOWN)
 						{
 							if(joymouseX<6)
 							{
@@ -571,7 +549,7 @@ void *startCapturing(void *args)
 						}
 					}
 				}
-				else if(key==M_RIGHT) //右
+				else if(key==KEY_6) //右
 				{
 					key=SDLK_RIGHT;
 					if(rotate==1)
@@ -584,7 +562,7 @@ void *startCapturing(void *args)
 					}
 					else
 					{
-						if(use_mouse && event.jbutton.state == SDL_PRESSED)
+						if(use_mouse && event.type == SDL_KEYDOWN)
 						{
 							if(joymouseX+6>=source_width-8)
 							{
@@ -608,20 +586,18 @@ void *startCapturing(void *args)
 						key=SDLK_x;//英文x，这里只要不冲突就行
 						ignore=0;
 					}
-					
-					
-					
-					if(mod && event.type == SDL_JOYBUTTONDOWN)
-					{
-						key=SDLK_c;//英文c,发送到java,作为切换按键模式的信号
-						mod=0;
-						ignore=1;
-					}
-					
 				}
 				else if(key==KEY_STAR) //select=*
 				{
-					key=SDLK_e;
+					if(!ignore)
+					{
+						key=SDLK_e;
+					}
+					else
+					{
+						key=SDLK_x;//英文x，这里只要不冲突就行
+						ignore=0;
+					}
 				}
 				else if(key==KEY_1) //L1=1
 				{
@@ -640,14 +616,9 @@ void *startCapturing(void *args)
 					key=SDLK_9;
 				}
 				
-				
-				//按住select键
-				if(event.type == SDL_JOYBUTTONDOWN && event.jbutton.button == M_select){mod=1;}
-				else if(event.type == SDL_JOYBUTTONUP && event.jbutton.button == M_select){mod=0;}
-				
 				if(!use_mouse)
 				{
-					sendKey(key, event.jbutton.state == SDL_PRESSED);
+					sendKey(key, event.type == SDL_KEYDOWN);
 				}
 
 				break;
@@ -660,149 +631,6 @@ void *startCapturing(void *args)
 	fflush(stderr);
 	pthread_exit(NULL);
 }
-
-int keyname2keycode(const char * name)
-{
-	if(strcmp(name,"X")==0)
-	{
-		return M_X;
-	}
-	else if(strcmp(name,"B")==0)
-	{
-		return M_B;
-	}
-	else if(strcmp(name,"A")==0)
-	{
-		return M_A;
-	}
-	else if(strcmp(name,"SELECT")==0)
-	{
-		return M_select;
-	}
-	else if(strcmp(name,"START")==0)
-	{
-		return M_start;
-	}
-	else if(strcmp(name,"Y")==0)
-	{
-		return M_Y;
-	}
-	else if(strcmp(name,"L")==0)
-	{
-		return M_L;
-	}
-	else if(strcmp(name,"R")==0)
-	{
-		return M_R;
-	}
-	else if(strcmp(name,"L2")==0)
-	{
-		return M_L2;
-	}
-	else if(strcmp(name,"R2")==0)
-	{
-		return M_R2;
-	}
-	
-	return 0;
-	
-}
-
-void defaultKeymap()
-{
-	KEY_LEFT=M_Y;
-	KEY_RIGHT=M_A;
-	KEY_OK=M_X;
-	KEY_STAR=M_select;
-	KEY_POUND=M_start;
-	KEY_1=M_L;
-	KEY_3=M_R;
-	KEY_7=M_L2;
-	KEY_9=M_R2;
-	KEY_0=M_B;
-}
-
-int loadConfig() {
-    // 打开文件
-    FILE *file = fopen("/storage/java/keymap.cfg", "r");
-    if (file == NULL) {
-		std::cout  << "打开文件失败" << std::endl;
-        return -1;
-    }
- 
-    // 确定文件长度
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    fseek(file, 0, SEEK_SET);
- 
-    // 读取文件内容到字符串
-    char *data = (char*)malloc(length + 1);
-    fread(data, 1, length, file);
-    data[length] = '\0';
-    fclose(file);
- 
-    // 解析JSON字符串
-    cJSON *json = cJSON_Parse(data);
-    if (json == NULL) {
-        const char *error_ptr = cJSON_GetErrorPtr();
-        if (error_ptr != NULL) {
-            fprintf(stdout, "解析json错误：%s\n", error_ptr);
-        }
-        cJSON_Delete(json);
-        free(data);
-        return -1;
-    }
-	
-	try{
-		// 使用cJSON对象
-		cJSON *name = cJSON_GetObjectItem(json, "左键");
-		KEY_LEFT=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "右键");
-		KEY_RIGHT=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "OK");
-		KEY_OK=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "*");
-		KEY_STAR=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "#");
-		KEY_POUND=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "0");
-		KEY_0=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "1");
-		KEY_1=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "3");
-		KEY_3=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "7");
-		KEY_7=keyname2keycode(name->valuestring);
-		
-		name = cJSON_GetObjectItem(json, "9");
-		KEY_9=keyname2keycode(name->valuestring);
-		
-	}
-	catch(std::exception& e)
-	{
-		
-		defaultKeymap();
-		
-		std::cout << "解析json出错:"<<e.what() << std::endl;
-		return -1;
-	}
- 
- 
-    // 清理工作
-    cJSON_Delete(json);
-    free(data);
- 
-    return 0;
-}
-
 
 /*********************************************************************** Main */
 int main(int argc, char* argv[])
@@ -828,7 +656,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	loadConfig();
 	init();
 	
 	if (pthread_create(&t_capturing, 0, &startCapturing, NULL))
