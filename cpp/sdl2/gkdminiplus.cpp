@@ -52,6 +52,7 @@ using namespace std;
 #define KEY_ROTT SDLK_l
 #define KEY_MOD SDLK_m
 #define KEY_MOS SDLK_n
+#define KEY_RES SDLK_j
 
 pthread_t t_capturing;
 
@@ -284,35 +285,73 @@ void loadOverlay(SDL_Rect &rect)
 	delete[] bytes;
 }
 
+void rebuildTextures(size_t &pitch, size_t &ropitch, SDL_Rect &dest, SDL_Rect &rodest)
+{
+	if (mTexture) SDL_DestroyTexture(mTexture);
+	if (romTexture) SDL_DestroyTexture(romTexture);
+
+	dest = getDestinationRect(source_width, source_height);
+	pitch = source_width * sizeof(char) * BYTES;
+	mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, source_width, source_height);
+
+	rodest = getDestinationRect(source_height, source_width);
+	ropitch = source_height * sizeof(char) * BYTES;
+	romTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, source_height, source_width);
+}
+
+bool readFrameHeader(int &w, int &h)
+{
+	unsigned char header[4];
+	if (fread(header, 1, 4, stdin) != 4) return false;
+	w = (header[0] << 8) | header[1];
+	h = (header[2] << 8) | header[3];
+	return (w > 0 && h > 0);
+}
+
 void startStreaming(string image)
 {
-	size_t pitch,ropitch;
-	SDL_Rect dest,rodest;
-	
-	dest= getDestinationRect(source_width,source_height);
+	size_t pitch, ropitch;
+	SDL_Rect dest, rodest;
 
 	loadBackground(image);
+
+	rebuildTextures(pitch, ropitch, dest, rodest);
 	loadOverlay(dest);
 
-	pitch= source_width * sizeof(char) * BYTES;
-	//纹理大小是jar游戏大小
-	mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, source_width, source_height);
-	
-	rodest= getDestinationRect(source_height,source_width);
-	ropitch= source_height * sizeof(char) * BYTES;
-	romTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING,  source_height,source_width);
-
- 
 	size_t num_chars = source_width * source_height * BYTES;
 	unsigned char* frame = new unsigned char[num_chars];
 	unsigned char* tmp_frame = new unsigned char[num_chars];
-	
-	//从输入流里读取到frame
-	while (capturing && updateFrame(num_chars, frame) || !sendQuitEvent())
+
+	while (capturing)
 	{
+		int new_w, new_h;
+		if (!readFrameHeader(new_w, new_h))
+		{
+			sendQuitEvent();
+			break;
+		}
+
+		if (new_w != source_width || new_h != source_height)
+		{
+			source_width = new_w;
+			source_height = new_h;
+			num_chars = source_width * source_height * BYTES;
+			delete[] frame;
+			delete[] tmp_frame;
+			frame = new unsigned char[num_chars];
+			tmp_frame = new unsigned char[num_chars];
+			rebuildTextures(pitch, ropitch, dest, rodest);
+			printf("Resolution changed: %dx%d\n", source_width, source_height);
+		}
+
+		if (!updateFrame(num_chars, frame))
+		{
+			sendQuitEvent();
+			break;
+		}
+
 		if(rotate==1)
 		{
-			
 			rot(frame,tmp_frame,source_width, source_height);
 			drawFrame(tmp_frame, romTexture,ropitch, &rodest);
 		}
@@ -323,7 +362,6 @@ void startStreaming(string image)
 		}
 		else
 		{
-			
 			if(use_mouse)
 			{
 				int t=0;
@@ -336,29 +374,26 @@ void startStreaming(string image)
 							continue;
 						}
 						t = ((joymouseY + i)*source_width+(joymouseX + j))*BYTES;
-						
+
 						switch (joymouseImage[(i*17)+j])
 						{
-							case 1: 
-								frame[t] = 0x00; 
+							case 1:
+								frame[t] = 0x00;
 								frame[t+1] = 0x00;
 								frame[t+2] = 0x00;
 								break;
-							case 2: 
-								frame[t] = 0xFF; 
-								frame[t+1] = 0xFF; 
-								frame[t+2] = 0xFF; 
+							case 2:
+								frame[t] = 0xFF;
+								frame[t+1] = 0xFF;
+								frame[t+2] = 0xFF;
 								break;
 						}
-						
 					}
 				}
 			}
-			
-			
+
 			drawFrame(frame, mTexture,pitch, &dest);
 		}
-		
 	}
 
 	if(g_joystick)
@@ -367,10 +402,8 @@ void startStreaming(string image)
 	}
 	SDL_DestroyTexture(mTexture);
 	SDL_DestroyTexture(romTexture);
-	//SDL_DestroyTexture(mBackground);
 	SDL_DestroyRenderer(mRenderer);
-	
-    SDL_DestroyWindow(mWindow);
+	SDL_DestroyWindow(mWindow);
 	delete[] frame;
 	delete[] tmp_frame;
 }
@@ -442,9 +475,15 @@ void *startCapturing(void *args)
 				}
 				else if (key==KEY_MOS)
 				{
-					key=SDLK_x;//英文x，这里只要不冲突就行
+					key=SDLK_x;
 					if(event.type == SDL_KEYDOWN)
-						use_mouse=1-use_mouse;//切换鼠标
+						use_mouse=1-use_mouse;
+				}
+				else if (key==KEY_RES)
+				{
+					key=SDLK_x;
+					if(event.type == SDL_KEYDOWN)
+						key=SDLK_v; // 发送给Java，触发分辨率切换
 				}
 				else if(key==KEY_OK) //X=ok
 				{

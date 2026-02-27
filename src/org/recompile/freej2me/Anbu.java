@@ -49,8 +49,8 @@ public class Anbu
 	private final SDL sdl;
 	//public Audio au;
 
-	private final int  lcdWidth;
-	private final int  lcdHeight;
+	private int  lcdWidth;
+	private int  lcdHeight;
 
 	private final boolean[]  pressedKeys = new boolean[128];
 
@@ -60,6 +60,16 @@ public class Anbu
 
 	private int useFlag=0;
 	private int soundLevel=100;
+	
+	private final int[][] resPresets = {
+		{240, 320}, {320, 240},
+		{176, 220}, {220, 176},
+		{128, 160}, {160, 128},
+		{128, 128},
+		{176, 208}, {208, 176},
+		{240, 400}, {400, 240},
+	};
+	private int resIndex = 0;
 	
 	
 	private final SDLConfig  config;
@@ -179,6 +189,15 @@ public class Anbu
 		lcdWidth = Integer.parseInt(args[1]);
 		lcdHeight = Integer.parseInt(args[2]);
 		
+		for (int i = 0; i < resPresets.length; i++)
+		{
+			if (resPresets[i][0] == lcdWidth && resPresets[i][1] == lcdHeight)
+			{
+				resIndex = i;
+				break;
+			}
+		}
+		
 		
 		String appname="";
 		String[] js=args[0].split("/");
@@ -243,12 +262,12 @@ public class Anbu
 
 					
 					// Send Frame to SDL interface
+					int w = lcdWidth;
+					int h = lcdHeight;
 					
-					
-					
-					int[] data= new int[lcdWidth* lcdHeight];
-					byte[] frame = new byte[lcdWidth* lcdHeight * 3];
-					Mobile.getPlatform().getLCD().getRGB(0, 0, lcdWidth, lcdHeight, data, 0, lcdWidth);
+					int[] data= new int[w * h];
+					byte[] frame = new byte[w * h * 3];
+					Mobile.getPlatform().getLCD().getRGB(0, 0, w, h, data, 0, w);
 					byte R,G,B;
 					
 					for(int i = 0; i < data.length; i++)
@@ -273,7 +292,7 @@ public class Anbu
 							for(int j=0;j<12;j++)
 							{
 								
-								t= ((10 + i)*lcdWidth+(10 + j))*3;
+								t= ((10 + i)*w+(10 + j))*3;
 								switch (keyPix[index+(i*12)+j])
 								{
 									case 0: 
@@ -294,6 +313,12 @@ public class Anbu
 						showfps+=1;
 					}
 					
+					byte[] header = new byte[4];
+					header[0] = (byte)((w >> 8) & 0xFF);
+					header[1] = (byte)(w & 0xFF);
+					header[2] = (byte)((h >> 8) & 0xFF);
+					header[3] = (byte)(h & 0xFF);
+					sdl.frame.write(header);
 					sdl.frame.write(frame);
 					sdl.frame.flush();
 					
@@ -685,6 +710,15 @@ public class Anbu
 			case 0x40000061: return Mobile.KEY_NUM3; // SDLK_KP_9
 			case 0x40000062: return Mobile.KEY_NUM0; // SDLK_KP_0
 			
+			case 0x76: // 'v' - 切换分辨率
+				resIndex = (resIndex + 1) % resPresets.length;
+				lcdWidth = resPresets[resIndex][0];
+				lcdHeight = resPresets[resIndex][1];
+				Mobile.getPlatform().resizeLCD(lcdWidth, lcdHeight);
+				showfps = 0;
+				System.out.println("Resolution: " + lcdWidth + "x" + lcdHeight);
+				break;
+				
 			case 0x63://c
 				//切换按键模式
 				

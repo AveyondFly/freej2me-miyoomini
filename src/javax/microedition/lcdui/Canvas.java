@@ -210,7 +210,7 @@ public abstract class Canvas extends Displayable
 
 	public void showNotify() { }
 
-	protected void sizeChanged(int w, int h)
+	public void sizeChanged(int w, int h)
 	{
 		width = w;
 		height = h;

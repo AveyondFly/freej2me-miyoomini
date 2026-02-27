@@ -109,6 +109,22 @@ public class MobilePlatform
 
 		lcd = new PlatformImage(width, height);
 		gc = lcd.getGraphics();
+
+		try
+		{
+			javax.microedition.lcdui.Displayable d = Mobile.getDisplay().getCurrent();
+			if (d != null)
+			{
+				d.platformImage = new PlatformImage(width, height);
+				d.width = width;
+				d.height = height;
+				d.sizeChanged(width, height);
+			}
+		}
+		catch (Exception e)
+		{
+			System.out.println("resizeLCD update displayable: " + e.getMessage());
+		}
 	}
 
 	public BufferedImage getLCD()
