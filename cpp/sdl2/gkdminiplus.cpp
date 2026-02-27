@@ -26,6 +26,7 @@ along with FreeJ2ME.  If not, see http://www.gnu.org/licenses/
 #include <iostream>
 #include <pthread.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include "cJSON.h"
 #include <FreeImage.h>
 
@@ -52,7 +53,7 @@ using namespace std;
 #define KEY_ROTT SDLK_l
 #define KEY_MOD SDLK_m
 #define KEY_MOS SDLK_n
-#define KEY_RES SDLK_j
+#define KEY_MENU SDLK_j
 
 pthread_t t_capturing;
 
@@ -81,6 +82,45 @@ SDL_Window *mWindow;
 
 SDL_Joystick *g_joystick=NULL;
 
+/* Settings menu */
+#define MENU_ITEM_RESOLUTION  0
+#define MENU_ITEM_PHONE       1
+#define MENU_ITEM_ROTATE      2
+#define MENU_ITEM_COUNT       3
+
+static const char *menu_item_names[MENU_ITEM_COUNT] = {"Resolution", "Phone", "Rotate"};
+
+static const int res_presets[][2] = {
+	{240,320}, {176,220}, {128,160}, {320,240},
+	{128,128}, {208,208}, {360,640},
+};
+#define RES_PRESET_COUNT 7
+
+static const char *phone_names[] = {"Standard", "Nokia", "Ericsson", "Siemens", "Motorola"};
+#define PHONE_MODE_COUNT 5
+
+static const char *rotate_names[] = {"Off", "90", "180"};
+#define ROTATE_MODE_COUNT 3
+
+static TTF_Font *menu_font = NULL;
+#define MENU_FONT_PATH "/usr/share/fonts/TTF/DejaVuSansMono.ttf"
+static int menu_font_size;
+static int menu_line_h;
+static int menu_width;
+static int menu_padding;
+static int menu_border;
+
+static struct {
+	int visible;
+	int selection;
+	int need_redraw;
+	SDL_Texture *tex;
+	int res_index;
+	int phone_index;
+} settings_menu = {0, 0, 1, NULL, 0, 0};
+
+static void settings_menu_adjust(int item, int dir);
+static void settings_menu_draw(SDL_Renderer *renderer);
 
 short joymouseX = 0;
 short joymouseY = 0;
@@ -134,6 +174,18 @@ void sendKey(int key, bool pressed)
 	//std::cout<<"sendkey:"<<key<<" pressed:"<<pressed<<std::endl;
 	
 	fwrite(&bytes, sizeof(char), 5, stderr);
+}
+
+void sendCommand(int cmd, int param1, int param2)
+{
+	unsigned char bytes[5];
+	bytes[0] = (char)(0x20 | (cmd & 0x0F));
+	bytes[1] = (char)((param1 >> 8) & 0xFF);
+	bytes[2] = (char)(param1 & 0xFF);
+	bytes[3] = (char)((param2 >> 8) & 0xFF);
+	bytes[4] = (char)(param2 & 0xFF);
+	fwrite(&bytes, sizeof(char), 5, stderr);
+	fflush(stderr);
 }
 
 bool sendQuitEvent()
@@ -202,7 +254,9 @@ void drawFrame(unsigned char *frame, SDL_Texture *mTexture,size_t pitch, SDL_Rec
 	SDL_UpdateTexture(mTexture, NULL, frame, pitch);
 	SDL_RenderCopy(mRenderer, mTexture, NULL, dest);
 
-	//更新到屏幕
+	if (settings_menu.visible)
+		settings_menu_draw(mRenderer);
+
 	SDL_RenderPresent(mRenderer);
 	
 }
@@ -239,7 +293,23 @@ void init()
 
 	// Set scaling properties
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-	SDL_RenderSetLogicalSize(mRenderer, display_width, display_height);	
+	SDL_RenderSetLogicalSize(mRenderer, display_width, display_height);
+
+	menu_font_size = display_height / 30;
+	if (menu_font_size < 12) menu_font_size = 12;
+	menu_line_h = menu_font_size * 3 / 2;
+	menu_width  = display_width * 2 / 3;
+	menu_padding = menu_font_size / 2;
+	menu_border = display_height / 240;
+	if (menu_border < 1) menu_border = 1;
+
+	if (TTF_Init() < 0)
+		printf("TTF_Init failed: %s\n", TTF_GetError());
+	else {
+		menu_font = TTF_OpenFont(MENU_FONT_PATH, menu_font_size);
+		if (!menu_font)
+			printf("Failed to load font: %s\n", TTF_GetError());
+	}
 }
 
 void loadBackground(string image)
@@ -285,6 +355,125 @@ void loadOverlay(SDL_Rect &rect)
 	delete[] bytes;
 }
 
+/* Settings menu functions */
+static void settings_menu_get_value_str(int item, char *buf, int buflen)
+{
+	switch (item) {
+	case MENU_ITEM_RESOLUTION:
+		snprintf(buf, buflen, "%dx%d",
+			res_presets[settings_menu.res_index][0],
+			res_presets[settings_menu.res_index][1]);
+		break;
+	case MENU_ITEM_PHONE:
+		snprintf(buf, buflen, "%s", phone_names[settings_menu.phone_index]);
+		break;
+	case MENU_ITEM_ROTATE:
+		snprintf(buf, buflen, "%s", rotate_names[rotate]);
+		break;
+	default:
+		buf[0] = '\0';
+	}
+}
+
+static void settings_menu_adjust(int item, int dir)
+{
+	switch (item) {
+	case MENU_ITEM_RESOLUTION:
+		settings_menu.res_index += dir;
+		if (settings_menu.res_index < 0) settings_menu.res_index = RES_PRESET_COUNT - 1;
+		if (settings_menu.res_index >= RES_PRESET_COUNT) settings_menu.res_index = 0;
+		sendCommand(0, res_presets[settings_menu.res_index][0],
+			res_presets[settings_menu.res_index][1]);
+		break;
+	case MENU_ITEM_PHONE:
+		settings_menu.phone_index += dir;
+		if (settings_menu.phone_index < 0) settings_menu.phone_index = PHONE_MODE_COUNT - 1;
+		if (settings_menu.phone_index >= PHONE_MODE_COUNT) settings_menu.phone_index = 0;
+		sendCommand(1, settings_menu.phone_index, 0);
+		break;
+	case MENU_ITEM_ROTATE:
+		rotate += dir;
+		if (rotate < 0) rotate = ROTATE_MODE_COUNT - 1;
+		if (rotate >= ROTATE_MODE_COUNT) rotate = 0;
+		break;
+	}
+	settings_menu.need_redraw = 1;
+}
+
+static void settings_menu_draw(SDL_Renderer *renderer)
+{
+	if (!menu_font) return;
+
+	int menu_w = menu_width;
+	int menu_h = MENU_ITEM_COUNT * menu_line_h + menu_padding * 2;
+	int bd = menu_border;
+
+	if (settings_menu.need_redraw || !settings_menu.tex) {
+		SDL_Surface *surf = SDL_CreateRGBSurface(0, menu_w, menu_h, 32,
+			0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+		if (!surf) return;
+
+		SDL_FillRect(surf, NULL, SDL_MapRGBA(surf->format, 0, 0, 0, 200));
+
+		Uint32 white = SDL_MapRGBA(surf->format, 255, 255, 255, 255);
+		SDL_Rect border;
+		border = {0, 0, menu_w, bd};
+		SDL_FillRect(surf, &border, white);
+		border = {0, menu_h - bd, menu_w, bd};
+		SDL_FillRect(surf, &border, white);
+		border = {0, 0, bd, menu_h};
+		SDL_FillRect(surf, &border, white);
+		border = {menu_w - bd, 0, bd, menu_h};
+		SDL_FillRect(surf, &border, white);
+
+		int y = menu_padding;
+		char buf[64], val_buf[80];
+		for (int i = 0; i < MENU_ITEM_COUNT; i++) {
+			SDL_Color name_color = (i == settings_menu.selection) ?
+				SDL_Color{255, 255, 0, 255} : SDL_Color{255, 255, 255, 255};
+			SDL_Color val_color = {0, 255, 0, 255};
+
+			SDL_Surface *name_surf = TTF_RenderText_Blended(menu_font, menu_item_names[i], name_color);
+			if (name_surf) {
+				SDL_Rect dst = {menu_padding, y, name_surf->w, name_surf->h};
+				SDL_BlitSurface(name_surf, NULL, surf, &dst);
+				SDL_FreeSurface(name_surf);
+			}
+
+			settings_menu_get_value_str(i, buf, sizeof(buf));
+			if (i == settings_menu.selection)
+				snprintf(val_buf, sizeof(val_buf), "< %s >", buf);
+			else
+				snprintf(val_buf, sizeof(val_buf), "  %s  ", buf);
+
+			SDL_Surface *val_surf = TTF_RenderText_Blended(menu_font, val_buf, val_color);
+			if (val_surf) {
+				SDL_Rect dst = {menu_w - val_surf->w - menu_padding, y, val_surf->w, val_surf->h};
+				SDL_BlitSurface(val_surf, NULL, surf, &dst);
+				SDL_FreeSurface(val_surf);
+			}
+
+			y += menu_line_h;
+		}
+
+		if (settings_menu.tex) SDL_DestroyTexture(settings_menu.tex);
+		settings_menu.tex = SDL_CreateTextureFromSurface(renderer, surf);
+		SDL_FreeSurface(surf);
+		if (settings_menu.tex)
+			SDL_SetTextureBlendMode(settings_menu.tex, SDL_BLENDMODE_BLEND);
+		settings_menu.need_redraw = 0;
+	}
+
+	if (settings_menu.tex) {
+		SDL_Rect dst;
+		dst.w = menu_w;
+		dst.h = menu_h;
+		dst.x = (display_width - dst.w) / 2;
+		dst.y = (display_height - dst.h) / 2;
+		SDL_RenderCopy(renderer, settings_menu.tex, NULL, &dst);
+	}
+}
+
 void rebuildTextures(size_t &pitch, size_t &ropitch, SDL_Rect &dest, SDL_Rect &rodest)
 {
 	if (mTexture) SDL_DestroyTexture(mTexture);
@@ -317,6 +506,13 @@ void startStreaming(string image)
 
 	rebuildTextures(pitch, ropitch, dest, rodest);
 	loadOverlay(dest);
+
+	for (int i = 0; i < RES_PRESET_COUNT; i++) {
+		if (res_presets[i][0] == source_width && res_presets[i][1] == source_height) {
+			settings_menu.res_index = i;
+			break;
+		}
+	}
 
 	size_t num_chars = source_width * source_height * BYTES;
 	unsigned char* frame = new unsigned char[num_chars];
@@ -438,9 +634,36 @@ void *startCapturing(void *args)
 				int key = event.key.keysym.sym;
 				
 				printf("get key pressed:0x%x, mod:%d\n", key, mod);
+
 				if (key == KEY_QUIT)
 					quit_process();
-				else if (key == KEY_SNAP && event.type == SDL_KEYDOWN) {
+
+				if (key == KEY_MENU && event.type == SDL_KEYDOWN) {
+					settings_menu.visible = !settings_menu.visible;
+					settings_menu.need_redraw = 1;
+					break;
+				}
+
+				if (settings_menu.visible) {
+					if (event.type == SDL_KEYDOWN) {
+						if (key == KEY_2)  {
+							settings_menu.selection = (settings_menu.selection - 1 + MENU_ITEM_COUNT) % MENU_ITEM_COUNT;
+							settings_menu.need_redraw = 1;
+						} else if (key == KEY_8) {
+							settings_menu.selection = (settings_menu.selection + 1) % MENU_ITEM_COUNT;
+							settings_menu.need_redraw = 1;
+						} else if (key == KEY_4) {
+							settings_menu_adjust(settings_menu.selection, -1);
+						} else if (key == KEY_6) {
+							settings_menu_adjust(settings_menu.selection, 1);
+						} else if (key == KEY_0) {
+							settings_menu.visible = 0;
+						}
+					}
+					break;
+				}
+
+				if (key == KEY_SNAP && event.type == SDL_KEYDOWN) {
 					sendKey(-2, true);
 					fflush(stderr);
 					continue;
@@ -478,12 +701,6 @@ void *startCapturing(void *args)
 					key=SDLK_x;
 					if(event.type == SDL_KEYDOWN)
 						use_mouse=1-use_mouse;
-				}
-				else if (key==KEY_RES)
-				{
-					key=SDLK_x;
-					if(event.type == SDL_KEYDOWN)
-						key=SDLK_v; // 发送给Java，触发分辨率切换
 				}
 				else if(key==KEY_OK) //X=ok
 				{
@@ -706,6 +923,9 @@ int main(int argc, char* argv[])
 
 	startStreaming(bg_image);
 	pthread_join(t_capturing, NULL);
+	if (settings_menu.tex) SDL_DestroyTexture(settings_menu.tex);
+	if (menu_font) TTF_CloseFont(menu_font);
+	TTF_Quit();
 	SDL_ShowCursor(false);
 	SDL_Quit();
 	return 0;

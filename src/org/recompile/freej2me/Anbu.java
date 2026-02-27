@@ -62,12 +62,13 @@ public class Anbu
 	private int soundLevel=100;
 	
 	private final int[][] resPresets = {
-		{240, 320}, {320, 240},
-		{176, 220}, {220, 176},
-		{128, 160}, {160, 128},
+		{240, 320},
+		{176, 220},
+		{128, 160},
+		{320, 240},
 		{128, 128},
-		{176, 208}, {208, 176},
-		{240, 400}, {400, 240},
+		{208, 208},
+		{360, 640},
 	};
 	private int resIndex = 0;
 	
@@ -419,9 +420,9 @@ public class Anbu
 		{
 			try
 			{
-				//String[] args={"/storage/java/sdl_interface",String.valueOf(lcdWidth),String.valueOf(lcdHeight)};
+				String jarDir = new File(Anbu.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
 				String[] new_args = new String[5];
-				new_args[0] = "/userdata/system/configs/java/sdl_interface";
+				new_args[0] = jarDir + "/sdl_interface";
 				new_args[1] = String.valueOf(lcdWidth);
 				new_args[2] = String.valueOf(lcdHeight);
 				new_args[3] = "-b";
@@ -533,8 +534,36 @@ public class Anbu
 										press=true;
 									}
 									return;
-								/* case 1: mobikey = getMobileKeyPad(code); break;
-								case 2: mobikey = getMobileKeyJoy(code); break; */
+								case 2: //命令模式
+								{
+									int cmd = din[0] & 0x0F;
+									if (cmd == 0) //设置分辨率
+									{
+										int newW = ((din[1]<<8)&0xFF00) | (din[2]&0x00FF);
+										int newH = ((din[3]<<8)&0xFF00) | (din[4]&0x00FF);
+										if (newW > 0 && newH > 0)
+										{
+											lcdWidth = newW;
+											lcdHeight = newH;
+											Mobile.getPlatform().resizeLCD(newW, newH);
+											System.out.println("Resolution: " + newW + "x" + newH);
+										}
+									}
+									else if (cmd == 1) //设置机种
+									{
+										int mode = ((din[1]<<8)&0xFF00) | (din[2]&0x00FF);
+										if (mode >= 0 && mode <= 4)
+										{
+											useFlag = mode;
+											String[] phoneKeys = {"p", "n", "e", "s", "m"};
+											config.settings.put("phone", phoneKeys[mode]);
+											config.saveConfig();
+											showfps = 0;
+											System.out.println("Phone mode: " + mode);
+										}
+									}
+									return;
+								}
 								default: continue;
 							}
 							
