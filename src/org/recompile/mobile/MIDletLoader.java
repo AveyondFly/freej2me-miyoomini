@@ -160,26 +160,25 @@ public class MIDletLoader extends URLClassLoader
 		super(urls);
 		
 		suitename=jarname;
-		String url="";
-		if(u.startsWith("/"))
-		{
-			url="jar:file:"+u;
-		}
-		else if(u.startsWith("file:"))
-		{
-			url="jar:"+u;
-		}
-		else
-		{
-			url="jar:file:/"+u;
-		}
 		
 		try{
+			URI fileUri;
+			if(u.startsWith("/"))
+			{
+				fileUri = new java.io.File(u).toURI();
+			}
+			else if(u.startsWith("file:"))
+			{
+				fileUri = new URI(u);
+			}
+			else
+			{
+				fileUri = new java.io.File(u).toURI();
+			}
+			URI uri = new URI("jar:" + fileUri.toString());
+			
 			HashMap<String, String> env = new HashMap<>(); 
 			env.put("create", "true");
-			// locate file system by using the syntax 
-			// defined in java.net.JarURLConnection
-			URI uri = URI.create(url);
 			zipfs = FileSystems.newFileSystem(uri, env);
 			
 			/* Path pathInZipfile = zipfs.getPath("/");      

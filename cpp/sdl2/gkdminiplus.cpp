@@ -395,6 +395,7 @@ static void settings_menu_adjust(int item, int dir)
 		rotate += dir;
 		if (rotate < 0) rotate = ROTATE_MODE_COUNT - 1;
 		if (rotate >= ROTATE_MODE_COUNT) rotate = 0;
+		sendCommand(2, rotate, 0);
 		break;
 	}
 	settings_menu.need_redraw = 1;
@@ -686,9 +687,12 @@ void *startCapturing(void *args)
 				}
 				else if (key==KEY_ROTT)
 				{
-					key=SDLK_x;//英文x，这里只要不冲突就行
+					key=SDLK_x;
 					if(event.type == SDL_KEYDOWN)
-						rotate=(1+rotate)%3;//连续旋转
+					{
+						rotate=(1+rotate)%3;
+						sendCommand(2, rotate, 0);
+					}
 				}
 				else if (key==KEY_MOD)
 				{
@@ -903,12 +907,15 @@ int main(int argc, char* argv[])
 			source_height = atoi(argv[++c]);
 		} else if (c > 2 && string("-r") == argv[c] && argc > c + 1) {
 			angle = atoi(argv[++c]) % 360;
+			rotate = angle / 90;
 		} else if (c > 2 && string("-i") == argv[c] && argc > c + 1) {
 			interpol = argv[++c];
 		} else if (c > 2 && string("-b") == argv[c] && argc > c + 1) {
 			bg_image = argv[++c];
 		} else if (c > 2 && string("-s") == argv[c] && argc > c + 1) {
 			additional_scale = atof(argv[++c]);
+		} else if (c > 2 && string("-p") == argv[c] && argc > c + 1) {
+			settings_menu.phone_index = atoi(argv[++c]);
 		}
 	}
 

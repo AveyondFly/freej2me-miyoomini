@@ -288,7 +288,7 @@ public class MobilePlatform
 			URL jar;
 			if(jarurl.startsWith("/"))
 			{
-				jar = new URL("file:"+jarurl);
+				jar = new java.io.File(jarurl).toURI().toURL();
 			}
 			else
 			{

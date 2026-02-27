@@ -33,6 +33,11 @@ import java.lang.ProcessBuilder;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
 
 
 
@@ -60,6 +65,8 @@ public class Anbu
 
 	private int useFlag=0;
 	private int soundLevel=100;
+	private String gameConfigFile;
+	private int savedRotate=0;
 	
 	private final int[][] resPresets = {
 		{240, 320},
@@ -181,14 +188,49 @@ public class Anbu
 		sdl = new SDL();
 		//au=new Audio();
 
-		if (args.length < 3)
+		if (args.length < 1)
 		{
-			System.out.println("参数数量不一致");
+			System.out.println("Usage: java -jar freej2me-sdl.jar <game.jar> [width height] [sound]");
 			System.exit(0);
 		}
 		
-		lcdWidth = Integer.parseInt(args[1]);
-		lcdHeight = Integer.parseInt(args[2]);
+		lcdWidth = 240;
+		lcdHeight = 320;
+		if (args.length >= 3)
+		{
+			lcdWidth = Integer.parseInt(args[1]);
+			lcdHeight = Integer.parseInt(args[2]);
+		}
+		
+		String appname="";
+		File gameFile = new File(args[0]);
+		String gameName = gameFile.getName();
+		if (gameName.endsWith(".jar"))
+		{
+			appname = gameName.substring(0, gameName.length() - 4);
+			System.out.println("jar file name:" + appname);
+		}
+		gameConfigFile = gameFile.getParent() + "/" + appname + ".conf";
+		
+		if (!new File(gameConfigFile).exists())
+		{
+			String fullPath = gameFile.getAbsolutePath();
+			boolean found = false;
+			for (int i = 0; i < resPresets.length && !found; i++)
+			{
+				String hintX = resPresets[i][0] + "x" + resPresets[i][1];
+				String hintN = "" + resPresets[i][0] + resPresets[i][1];
+				if (fullPath.contains(hintX) || fullPath.contains(hintN))
+				{
+					lcdWidth = resPresets[i][0];
+					lcdHeight = resPresets[i][1];
+					System.out.println("Resolution hint from path: " + resPresets[i][0] + "x" + resPresets[i][1]);
+					found = true;
+				}
+			}
+		}
+		
+		loadGameConfig();
 		
 		for (int i = 0; i < resPresets.length; i++)
 		{
@@ -198,32 +240,20 @@ public class Anbu
 				break;
 			}
 		}
-		
-		
-		String appname="";
-		String[] js=args[0].split("/");
-		if(js.length>0)
-		{
-			if(js[js.length-1].endsWith(".jar"))
-			{
-				appname=js[js.length-1].substring(0,js[js.length-1].length()-4);
-				System.out.println("jar file name:"+appname);
-			}
-		}
-		
-		
-		
 
 		Mobile.setPlatform(new MobilePlatform(lcdWidth, lcdHeight));
 		Mobile.getPlatform().dataPath="/roms/savestates/j2me/";
 		Mobile.getPlatform().rootPath="/roms/j2me/";
 		
 		
-		soundLevel=Integer.parseInt(args[3]);
+		if (args.length >= 4)
+			soundLevel = Integer.parseInt(args[3]);
 		Audio.setVol(soundLevel);
 		
 		config = new SDLConfig();
 		config.init(appname+lcdWidth+lcdHeight);
+		String[] phoneKeys = {"p", "n", "e", "s", "m"};
+		config.settings.put("phone", phoneKeys[useFlag]);
 		settingsChanged();
 		
 		//au.start(soundLevel);
@@ -402,6 +432,62 @@ public class Anbu
 		else if(phone.equals("s")) { /* Mobile.siemens = true; useSiemensControls = true; */ useFlag=3;}
 		else if(phone.equals("m")) { /* Mobile.motorola = true; useMotorolaControls = true; */ useFlag=4;}
 	}
+
+	private void loadGameConfig()
+	{
+		try
+		{
+			File f = new File(gameConfigFile);
+			if (!f.exists()) return;
+			BufferedReader reader = new BufferedReader(new FileReader(f));
+			String line;
+			while ((line = reader.readLine()) != null)
+			{
+				String[] parts = line.split(":");
+				if (parts.length == 2)
+				{
+					String key = parts[0].trim();
+					String val = parts[1].trim();
+					if (key.equals("width")) lcdWidth = Integer.parseInt(val);
+					else if (key.equals("height")) lcdHeight = Integer.parseInt(val);
+					else if (key.equals("rotate")) savedRotate = Integer.parseInt(val);
+					else if (key.equals("phone"))
+					{
+						useFlag = 0;
+						if (val.equals("n")) useFlag = 1;
+						else if (val.equals("e")) useFlag = 2;
+						else if (val.equals("s")) useFlag = 3;
+						else if (val.equals("m")) useFlag = 4;
+					}
+				}
+			}
+			reader.close();
+			System.out.println("Loaded game config: " + lcdWidth + "x" + lcdHeight + " rotate=" + savedRotate + " phone=" + useFlag);
+		}
+		catch (Exception e)
+		{
+			System.out.println("loadGameConfig: " + e.getMessage());
+		}
+	}
+
+	private void saveGameConfig()
+	{
+		try
+		{
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(gameConfigFile)));
+			writer.write("width:" + lcdWidth + "\n");
+			writer.write("height:" + lcdHeight + "\n");
+			String[] phoneKeys = {"p", "n", "e", "s", "m"};
+			writer.write("phone:" + phoneKeys[useFlag] + "\n");
+			writer.write("rotate:" + savedRotate + "\n");
+			writer.close();
+			System.out.println("Saved game config: " + gameConfigFile);
+		}
+		catch (Exception e)
+		{
+			System.out.println("saveGameConfig: " + e.getMessage());
+		}
+	}
 	
 
 	private class SDL
@@ -421,17 +507,27 @@ public class Anbu
 			try
 			{
 				String jarDir = new File(Anbu.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
-				String[] new_args = new String[5];
-				new_args[0] = jarDir + "/sdl_interface";
-				new_args[1] = String.valueOf(lcdWidth);
-				new_args[2] = String.valueOf(lcdHeight);
-				new_args[3] = "-b";
+				java.util.ArrayList<String> argsList = new java.util.ArrayList<String>();
+				argsList.add(jarDir + "/sdl_interface");
+				argsList.add(String.valueOf(lcdWidth));
+				argsList.add(String.valueOf(lcdHeight));
+				argsList.add("-b");
 				if (lcdWidth > lcdHeight)
-					new_args[4] = "/roms/bezels/java/java_h.png";
+					argsList.add("/roms/bezels/java/java_h.png");
 				else
-					new_args[4] = "/roms/bezels/java/java_v.png";
+					argsList.add("/roms/bezels/java/java_v.png");
+				if (savedRotate != 0)
+				{
+					argsList.add("-r");
+					argsList.add(String.valueOf(savedRotate * 90));
+				}
+				if (useFlag != 0)
+				{
+					argsList.add("-p");
+					argsList.add(String.valueOf(useFlag));
+				}
 			
-				proc = new ProcessBuilder(new_args).start();
+				proc = new ProcessBuilder(argsList).start();
 
 				//标准输出流，从接口获取用户的按键输入
 				//keys = proc.getInputStream(); //  miyoo mini/x64-linux
@@ -547,6 +643,7 @@ public class Anbu
 											lcdHeight = newH;
 											Mobile.getPlatform().resizeLCD(newW, newH);
 											System.out.println("Resolution: " + newW + "x" + newH);
+											saveGameConfig();
 										}
 									}
 									else if (cmd == 1) //设置机种
@@ -560,7 +657,14 @@ public class Anbu
 											config.saveConfig();
 											showfps = 0;
 											System.out.println("Phone mode: " + mode);
+											saveGameConfig();
 										}
+									}
+									else if (cmd == 2) //设置旋转
+									{
+										savedRotate = ((din[1]<<8)&0xFF00) | (din[2]&0x00FF);
+										System.out.println("Rotate: " + savedRotate);
+										saveGameConfig();
 									}
 									return;
 								}
