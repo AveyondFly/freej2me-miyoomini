@@ -11,7 +11,20 @@
 
 编译：
 
-前端使用sdl2，需编译出sdl_interface
+Java JAR：
+```
+ant -Dvariant=linux-aarch64
+```
+
+前端使用sdl2，需编译出sdl_interface：
+```
+cd cpp/sdl2
+make
+```
+可通过 `TOOLCHAIN` 变量指定交叉编译工具链路径：
+```
+make TOOLCHAIN=/path/to/toolchain/bin/aarch64-xxx-
+```
 
 声音使用sdl2-mixer，需编译出libaudio
 
@@ -21,9 +34,11 @@
 ```
 export JAVA_TOOL_OPTIONS='-Xverify:none -Djava.util.prefs.systemRoot=./.java -Djava.util.prefs.userRoot=./.java/.userPrefs -Djava.library.path=./'
 
-java -jar freej2me-sdl.jar /home/game.jar 240 320 100
+java -jar freej2me-sdl.jar /path/to/game.jar [width height] [sound]
 ```
-240 320指游戏分辨率，100指音量（0-100）
+- width height 和 sound 均为可选参数，默认分辨率 240x320，音量 100
+- 如果游戏目录下存在 `<游戏名>.conf` 配置文件（由OSD菜单自动生成），分辨率/机型/旋转将从配置文件加载
+- 如果路径或文件名中包含分辨率提示（如 `320x240` 或 `320240`），首次启动时会自动匹配
 
 可通过修改keymap.cfg，自定义按键映射。
 
