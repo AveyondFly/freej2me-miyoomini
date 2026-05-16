@@ -634,8 +634,6 @@ void *startCapturing(void *args)
 			
 				int key = event.key.keysym.sym;
 				
-				printf("get key pressed:0x%x, mod:%d\n", key, mod);
-
 				if (key == KEY_QUIT)
 					quit_process();
 
